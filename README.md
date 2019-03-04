@@ -1,9 +1,9 @@
 # Data-to-Models
 Thesis project repository. Will be used to store mostly c++ code related to the transformation of raw point cloud data to solid models of structural components.
 
-Current progress:
+<b>Current progress:</b>
 
-Environment for reading raw LIDAR rosbag data with BLAM complete.
+Environment for reading raw LIDAR rosbag data with BLAM is <i>mostly</i> functional.
 
 <b>Next steps:</b>
 
