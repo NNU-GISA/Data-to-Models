@@ -24,9 +24,10 @@ nx = 50;
 ny = 10;
 nb = 100;
 
-start = time.clock()
+begining = time.perf_counter()
+start = begining
 print('\nLoading point cloud')
-pcd_load = open3d.read_point_cloud("Bridge1ExtraClean.pcd")
+pcd_load = open3d.read_point_cloud("..\data\Bridge1ExtraClean.pcd")
 xyz_load = np.asarray(pcd_load.points)
 rgb_load = np.asarray(pcd_load.colors)
 
@@ -34,9 +35,9 @@ rgb_load = np.asarray(pcd_load.colors)
 
 
 #Orient Bridge along x axis using PCA
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nOrienting point cloud along x axis')
-start = time.clock()
+start = time.perf_counter()
 pca = decomposition.PCA(n_components=2)
 x = xyz_load[:,0:2]
 pca.fit(x)
@@ -63,9 +64,9 @@ showstats(xyz_oriented)
 '''
 
 #slice x axis based on some delta (use 100 slices to start)
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nSorting')
-start = time.clock()
+start = time.perf_counter()
 xyz_sortedX_ascend = xyz_oriented[np.argsort(xyz_oriented[:,0]), :]
 xyz = xyz_sortedX_ascend
 
@@ -77,9 +78,9 @@ yMax = np.max(xyz[:,1])
 zMax = np.max(xyz[:,2])
 
 delta = (1/nx)*(xMax-xMin)
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nSlicing along X')
-start = time.clock()
+start = time.perf_counter()
 
 BL = 0
 step2 = []
@@ -91,9 +92,9 @@ for i in range(nx):
 #step2
     #for each slice, check it against a user defined weighting value
     #and move the slice to step3 or step4
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nAssigning X slices (step2) as pier or deck areas')
-start = time.clock()
+start = time.perf_counter()
 
 red = np.diag(np.divide([255, 0, 0],255))
 blue = np.diag(np.divide([0, 0, 255],255))
@@ -101,7 +102,7 @@ step3t = []
 step3d = []
 write = True
 for i in range(len(step2)):
-    filename = "step2/slice" + str(i) + ".pcd"
+    filename = "../step2/slice" + str(i) + ".pcd"
     pcd_export = open3d.PointCloud()
     pcd_export.points = open3d.Vector3dVector(step2[i])
     localZmin = np.min(step2[i][:,2])
@@ -118,9 +119,9 @@ for i in range(len(step2)):
         open3d.write_point_cloud(filename, pcd_export)
 #step2.5
     #for each pier slice, remove the deck top and set it aside
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nRemoving deck top from pier area X slices')
-start = time.clock()
+start = time.perf_counter()
 deckTop = []
 
 for i in range(len(step3t)):
@@ -137,14 +138,14 @@ for i in range(len(step3t)):
     #print("yMin %.3f\t yMax %.3f\t deltaY %.3f\t deltaZ %.3f\t BR %.3f\t"%(yMin,yMax,deltaY,deltaZ,BR))
     #print("Length slice after: " + str(len(step3t[i])))
     
-    filename = "step2_5/Dtop_" + str(len(deckTop)-1) + ".pcd"
+    filename = "../step2_5/Dtop_" + str(len(deckTop)-1) + ".pcd"
     pcd_export = open3d.PointCloud()
     pcd_export.points = open3d.Vector3dVector(deckTop[i])
     rgb = np.matmul(np.ones((len(deckTop[i]),3)),red)
     pcd_export.colors = open3d.Vector3dVector(rgb)
     open3d.write_point_cloud(filename, pcd_export)
 
-    filename = "step2_5/Parea_" + str(i) + ".pcd"
+    filename = "../step2_5/Parea_" + str(i) + ".pcd"
     pcd_export = open3d.PointCloud()
     pcd_export.points = open3d.Vector3dVector(step3t[i])
     rgb = np.matmul(np.ones((len(step3t[i]),3)),blue)
@@ -154,9 +155,9 @@ for i in range(len(step3t)):
     
 #step3
     #for each pier slice, slice it again along the y axis
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nSlicing pier areas along Y axis')
-start = time.clock()
+start = time.perf_counter()
 
 step3 = []
 step3_hold = []
@@ -177,9 +178,9 @@ for i in range(len(step3t)):
     step3_hold = []
 
 #assign by user value
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nAssigning Pier Areas (step3) as 20 pier or deck areas')
-start = time.clock()
+start = time.perf_counter()
 
 pierArea = []
 deckArea = []
@@ -201,11 +202,11 @@ for k in range(len(step3)):#42 x slices
         if (localZmax-localZmin)>p2*(zMax-zMin):
             rgb = np.matmul(np.ones((len(step3[k][i]),3)),blue)
             pierArea.append(step3[k][i])
-            filename = "step3/Pslice" + str(len(pierArea)-1) + ".pcd"
+            filename = "../step3/Pslice" + str(len(pierArea)-1) + ".pcd"
         else:
             rgb = np.matmul(np.ones((len(step3[k][i]),3)),red)
             deckArea.append(step3[k][i])
-            filename = "step3/Dslice" + str(len(deckArea)-1) + ".pcd"
+            filename = "../step3/Dslice" + str(len(deckArea)-1) + ".pcd"
         if write:
             pcd_export.colors = open3d.Vector3dVector(rgb)
             open3d.write_point_cloud(filename, pcd_export)
@@ -216,9 +217,9 @@ for k in range(len(step3)):#42 x slices
 
 
 #Step 4: Segment pierArea into base components
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nFinal Segmenting of Pier Areas (step4) using histograms of point normals')
-start = time.clock()
+start = time.perf_counter()
 
 
 for i in range(len(pierArea)):
@@ -295,9 +296,9 @@ for i in range(len(pierArea)):
         pierCap = np.vstack((pierCap,(PA[b1_leftIndex:b2_leftIndex,:])))
         pier = np.vstack((pier,(PA[:b1_leftIndex,:])))
 
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nCombining All deck slices')
-start = time.clock()
+start = time.perf_counter()
 
 for i in range(len(step3d)):
     deck = np.vstack((deck,step3d[i]))
@@ -340,32 +341,32 @@ for i in range(len(deckTop)):
     deck[pos:pos+nex,:]=deckTop[i]
     pos += nex
 '''
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 print('\nExporting Deck,PierCap, and Pier Point Sets')
-start = time.clock()
+start = time.perf_counter()
 
 green = np.diag(np.divide([0, 255, 0],255))
 pcd_export = open3d.PointCloud()
 pcd_export.points = open3d.Vector3dVector(deck)
 rgb = np.matmul(np.ones((len(deck),3)),red)
 pcd_export.colors = open3d.Vector3dVector(rgb)
-open3d.write_point_cloud("step4/deck.pcd", pcd_export)
+open3d.write_point_cloud("../step4/deck.pcd", pcd_export)
 
 pcd_export = open3d.PointCloud()
 pcd_export.points = open3d.Vector3dVector(pierCap)
 rgb = np.matmul(np.ones((len(pierCap),3)),green)
 pcd_export.colors = open3d.Vector3dVector(rgb)
-open3d.write_point_cloud("step4/pierCap.pcd", pcd_export)
+open3d.write_point_cloud("../step4/pierCap.pcd", pcd_export)
 
 pcd_export = open3d.PointCloud()
 pcd_export.points = open3d.Vector3dVector(pier)
 rgb = np.matmul(np.ones((len(pier),3)),blue)
 pcd_export.colors = open3d.Vector3dVector(rgb)
-open3d.write_point_cloud("step4/pier.pcd", pcd_export)
+open3d.write_point_cloud("../step4/pier.pcd", pcd_export)
 
 
 
 
 
-print('Delta: ' + str(time.clock()-start) + '\tTotal: ' + str(time.clock()))
+print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
 
