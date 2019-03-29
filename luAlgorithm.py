@@ -66,7 +66,7 @@ step3t = []
 step3d = []
 write = True
 for i in range(len(step2)):
-    filename = "../step2/slice" + str(i) + ".pcd"
+    filename = "../data/step2/slice" + str(i) + ".pcd"
     pcd_export = open3d.PointCloud()
     pcd_export.points = open3d.Vector3dVector(step2[i])
     localZmin = np.min(step2[i][:,2])
@@ -101,14 +101,14 @@ for i in range(len(step3t)):
     #print("yMin %.3f\t yMax %.3f\t deltaY %.3f\t deltaZ %.3f\t BR %.3f\t"%(yMin,yMax,deltaY,deltaZ,BR))
     #print("Length slice after: " + str(len(step3t[i])))
     
-    filename = "../step2_5/Dtop_" + str(len(deckTop)-1) + ".pcd"
+    filename = "../data/step2_5/Dtop_" + str(len(deckTop)-1) + ".pcd"
     pcd_export = open3d.PointCloud()
     pcd_export.points = open3d.Vector3dVector(deckTop[i])
     rgb = np.matmul(np.ones((len(deckTop[i]),3)),red)
     pcd_export.colors = open3d.Vector3dVector(rgb)
     open3d.write_point_cloud(filename, pcd_export)
 
-    filename = "../step2_5/Parea_" + str(i) + ".pcd"
+    filename = "../data/step2_5/Parea_" + str(i) + ".pcd"
     pcd_export = open3d.PointCloud()
     pcd_export.points = open3d.Vector3dVector(step3t[i])
     rgb = np.matmul(np.ones((len(step3t[i]),3)),blue)
@@ -161,11 +161,11 @@ for k in range(len(step3)):#42 x slices
         if (localZmax-localZmin)>p2*(zMax-zMin):
             rgb = np.matmul(np.ones((len(step3[k][i]),3)),blue)
             pierArea.append(step3[k][i])
-            filename = "../step3/Pslice" + str(len(pierArea)-1) + ".pcd"
+            filename = "../data/step3/Pslice" + str(len(pierArea)-1) + ".pcd"
         else:
             rgb = np.matmul(np.ones((len(step3[k][i]),3)),red)
             deckArea.append(step3[k][i])
-            filename = "../step3/Dslice" + str(len(deckArea)-1) + ".pcd"
+            filename = "../data/step3/Dslice" + str(len(deckArea)-1) + ".pcd"
         if write:
             pcd_export.colors = open3d.Vector3dVector(rgb)
             open3d.write_point_cloud(filename, pcd_export)
@@ -302,19 +302,19 @@ pcd_export = open3d.PointCloud()
 pcd_export.points = open3d.Vector3dVector(deck)
 rgb = np.matmul(np.ones((len(deck),3)),red)
 pcd_export.colors = open3d.Vector3dVector(rgb)
-open3d.write_point_cloud("../step4/deck.pcd", pcd_export)
+open3d.write_point_cloud("../data/step4/deck.pcd", pcd_export)
 
 pcd_export = open3d.PointCloud()
 pcd_export.points = open3d.Vector3dVector(pierCap)
 rgb = np.matmul(np.ones((len(pierCap),3)),green)
 pcd_export.colors = open3d.Vector3dVector(rgb)
-open3d.write_point_cloud("../step4/pierCap.pcd", pcd_export)
+open3d.write_point_cloud("../data/step4/pierCap.pcd", pcd_export)
 
 pcd_export = open3d.PointCloud()
 pcd_export.points = open3d.Vector3dVector(pier)
 rgb = np.matmul(np.ones((len(pier),3)),blue)
 pcd_export.colors = open3d.Vector3dVector(rgb)
-open3d.write_point_cloud("../step4/pier.pcd", pcd_export)
+open3d.write_point_cloud("../data/step4/pier.pcd", pcd_export)
 
 
 
