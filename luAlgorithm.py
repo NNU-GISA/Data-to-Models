@@ -1,21 +1,12 @@
+from luFunctions import clock_msg,orientPCA
+
 import numpy as np
 import open3d#for pcd file io, and point normal calculation
-from sklearn import decomposition#for pca
+#from sklearn import decomposition#for pca
 import time
 import bisect
-from matplotlib import pyplot as plt#for histogram and 3d visualization
-from mpl_toolkits.mplot3d import Axes3D#for 3d visualization
-
-def showStats(mat):
-
-    print("X axis values [min, mean, max]")
-    print(str(round(np.min(mat[:,0]),2)) + "\t" + str(round(np.mean(mat[:,0]),2)) + "\t" + str(round(np.max(mat[:,0]),2)))
-    print("\nY axis values [min, mean, max]")
-    print(str(round(np.min(mat[:,1]),2)) + "\t" + str(round(np.mean(mat[:,1]),2)) + "\t" + str(round(np.max(mat[:,1]),2)))
-    print("\nZ axis values [min, mean, max]")
-    print(str(round(np.min(mat[:,2]),2)) + "\t" + str(round(np.mean(mat[:,2]),2)) + "\t" + str(round(np.max(mat[:,2]),2)))
-    print()
-
+#from matplotlib import pyplot as plt#for histogram and 3d visualization
+#from mpl_toolkits.mplot3d import Axes3D#for 3d visualization
 
 #set manual factors
 p1 = 0.25;
@@ -31,30 +22,9 @@ pcd_load = open3d.read_point_cloud("..\data\Bridge1ExtraClean.pcd")
 xyz_load = np.asarray(pcd_load.points)
 rgb_load = np.asarray(pcd_load.colors)
 
-
-
-
 #Orient Bridge along x axis using PCA
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nOrienting point cloud along x axis')
-start = time.perf_counter()
-pca = decomposition.PCA(n_components=2)
-x = xyz_load[:,0:2]
-pca.fit(x)
-mat = pca.components_
-coef = np.zeros((3,3))
-coef[2,2] = 1
-
-for i in range(2):
-    for j in range(2):
-        coef[i,j]=mat[i,j]
-
-
-coef[0,1] = -coef[0,1]
-coef[1,0] = -coef[1,0]
-xyz_oriented = np.matmul(xyz_load,coef)
-
-
+start = clock_msg('Orienting point cloud along x axis',start,begining)
+xyz_oriented = orientPCA(xyz_load)
 
 '''
 print("Before:\n")
@@ -64,9 +34,7 @@ showstats(xyz_oriented)
 '''
 
 #slice x axis based on some delta (use 100 slices to start)
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nSorting')
-start = time.perf_counter()
+start = clock_msg('Sorting',start,begining)
 xyz_sortedX_ascend = xyz_oriented[np.argsort(xyz_oriented[:,0]), :]
 xyz = xyz_sortedX_ascend
 
@@ -78,9 +46,7 @@ yMax = np.max(xyz[:,1])
 zMax = np.max(xyz[:,2])
 
 delta = (1/nx)*(xMax-xMin)
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nSlicing along X')
-start = time.perf_counter()
+start = clock_msg('Slicing along X',start,begining)
 
 BL = 0
 step2 = []
@@ -92,9 +58,7 @@ for i in range(nx):
 #step2
     #for each slice, check it against a user defined weighting value
     #and move the slice to step3 or step4
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nAssigning X slices (step2) as pier or deck areas')
-start = time.perf_counter()
+start = clock_msg('Assigning X slices (step2) as pier or deck areas',start,begining)
 
 red = np.diag(np.divide([255, 0, 0],255))
 blue = np.diag(np.divide([0, 0, 255],255))
@@ -119,9 +83,8 @@ for i in range(len(step2)):
         open3d.write_point_cloud(filename, pcd_export)
 #step2.5
     #for each pier slice, remove the deck top and set it aside
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nRemoving deck top from pier area X slices')
-start = time.perf_counter()
+start = clock_msg('Removing deck top from pier area X slices',start,begining)
+
 deckTop = []
 
 for i in range(len(step3t)):
@@ -155,9 +118,7 @@ for i in range(len(step3t)):
     
 #step3
     #for each pier slice, slice it again along the y axis
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nSlicing pier areas along Y axis')
-start = time.perf_counter()
+start = clock_msg('Slicing pier areas along Y axis',start,begining)
 
 step3 = []
 step3_hold = []
@@ -178,9 +139,7 @@ for i in range(len(step3t)):
     step3_hold = []
 
 #assign by user value
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nAssigning Pier Areas (step3) as 20 pier or deck areas')
-start = time.perf_counter()
+start = clock_msg('Assigning Pier Areas (step3) as 20 pier or deck areas',start,begining)
 
 pierArea = []
 deckArea = []
@@ -217,10 +176,7 @@ for k in range(len(step3)):#42 x slices
 
 
 #Step 4: Segment pierArea into base components
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nFinal Segmenting of Pier Areas (step4) using histograms of point normals')
-start = time.perf_counter()
-
+start = clock_msg('Final Segmenting of Pier Areas (step4) using histograms of point normals',start,begining)
 
 for i in range(len(pierArea)):
     #print("i=%d"%i)
@@ -296,9 +252,7 @@ for i in range(len(pierArea)):
         pierCap = np.vstack((pierCap,(PA[b1_leftIndex:b2_leftIndex,:])))
         pier = np.vstack((pier,(PA[:b1_leftIndex,:])))
 
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nCombining All deck slices')
-start = time.perf_counter()
+start = clock_msg('Combining All deck slices',start,begining)
 
 for i in range(len(step3d)):
     deck = np.vstack((deck,step3d[i]))
@@ -341,9 +295,7 @@ for i in range(len(deckTop)):
     deck[pos:pos+nex,:]=deckTop[i]
     pos += nex
 '''
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
-print('\nExporting Deck,PierCap, and Pier Point Sets')
-start = time.perf_counter()
+start = clock_msg('Exporting Deck,PierCap, and Pier Point Sets',start,begining)
 
 green = np.diag(np.divide([0, 255, 0],255))
 pcd_export = open3d.PointCloud()
@@ -368,5 +320,5 @@ open3d.write_point_cloud("../step4/pier.pcd", pcd_export)
 
 
 
-print('Delta: ' + str(time.perf_counter()-start) + '\tTotal: ' + str(time.perf_counter()-begining))
+start = clock_msg('',start,begining)
 
