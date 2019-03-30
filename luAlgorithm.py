@@ -9,7 +9,7 @@ import time
 #from mpl_toolkits.mplot3d import Axes3D#for 3d visualization
 import pandas as pd
 import hdbscan
-
+debug = True
 #set manual factors
 p1 = 0.25;
 p2 = 0.30;
@@ -45,22 +45,27 @@ xSlice, xyz = sortSliceX(xyz, xMin, xMax, nx)
 start = clock_msg('Assigning X slices (step2) as pier or deck areas',start,begining)
 
 write = True
+
 deckX, notDeckX = assignXslice(xSlice, p1, zMax, zMin, write)
+
+print("deckX = %d\t notDeckX = %d\t"%(len(deckX), len(notDeckX)))
+
 #step2.5
     #for each pier slice, remove the deck top and set it aside
 start = clock_msg('Removing deck top from pier area X slices',start,begining)
 notDeckX, deckTop = removeDeckTop(notDeckX, write)
-
+print("notDeckX = %d\t deckTop = %d\t"%(len(notDeckX), len(deckTop)))
     
 #step3
     #for each pier slice, slice it again along the y axis
 start = clock_msg('Slicing pier areas along Y axis',start,begining)
 ySlice = sliceY(notDeckX,ny)
-
+print("ySlice = %d"%(len(ySlice)))
 
 #assign by user value
 start = clock_msg('Assigning Pier Areas (step3) as 20 pier or deck areas',start,begining)
 pierArea, deckArea = assignYslice(ySlice, deckTop, p2, ny, zMax, zMin, write)
+print("pierArea = %d\t deckArea = %d\t"%(len(pierArea), len(deckArea)))
 
 #Step 4: Segment pierArea into base components
 start = clock_msg('Final Segmenting of Pier Areas (step4) using histograms of point normals',start,begining)
