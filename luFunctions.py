@@ -141,11 +141,10 @@ def sliceY(notDeckX,ny):
     return ySlice
 
 
-def assignYslice(ySlice, deckTop, p2, ny, zMax, zMin):
+def assignYslice(ySlice, deckTop, p2, ny, zMax, zMin, write):
     pierArea = []
     deckArea = []
     #don't forget deckX contains all the x slices of the deck
-    write = True
     red = np.diag(np.divide([255, 0, 0],255))
     blue = np.diag(np.divide([0, 0, 255],255))
     #deck top is in deckTop[i][row,3] and should correspond to ySlice[i][:][row,3]
@@ -164,11 +163,11 @@ def assignYslice(ySlice, deckTop, p2, ny, zMax, zMin):
             if (localZmax-localZmin)>p2*(zMax-zMin):
                 rgb = np.matmul(np.ones((len(ySlice[k][i]),3)),blue)
                 pierArea.append(ySlice[k][i])
-                filename = "../data/ySlice/Pslice" + str(len(pierArea)-1) + ".pcd"
+                filename = "../data/step3/nDslice_" + str(len(pierArea)-1) + ".pcd"
             else:
                 rgb = np.matmul(np.ones((len(ySlice[k][i]),3)),red)
                 deckArea.append(ySlice[k][i])
-                filename = "../data/ySlice/Dslice" + str(len(deckArea)-1) + ".pcd"
+                filename = "../data/step3/Dslice" + str(len(deckArea)-1) + ".pcd"
             if write:
                 pcd_export.colors = open3d.Vector3dVector(rgb)
                 open3d.write_point_cloud(filename, pcd_export)
@@ -323,6 +322,28 @@ def exportComponents(deck,pierCap, pier):
     return 1
 
 
-
+def exportComponentList(data,name,color):
+    
+    if type(data)==type([]):
+        for i in range(len(data)):
+            #print("len(data)=%d\ti=%d"%(len(data),i))
+            filename = "../data/cluster/" + name + "_" + str(i) + "_.pcd"
+            #print(filename)
+            pcd_export = open3d.PointCloud()
+            pcd_export.points = open3d.Vector3dVector(data[i])
+            rgb = np.matmul(np.ones((len(data[i]),3)),color)
+            pcd_export.colors = open3d.Vector3dVector(rgb)
+            #print(pcd_export)
+            open3d.write_point_cloud(filename, pcd_export)
+            
+    else:
+        filename = "../data/cluster/" + name + ".pcd"
+        pcd_export = open3d.PointCloud()
+        pcd_export.points = open3d.Vector3dVector(data)
+        rgb = np.matmul(np.ones((len(data),3)),color)
+        pcd_export.colors = open3d.Vector3dVector(rgb)
+        open3d.write_point_cloud(filename, pcd_export)
+                
+        
 
 
