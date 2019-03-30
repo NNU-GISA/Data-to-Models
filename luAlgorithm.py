@@ -68,6 +68,7 @@ pierArea, deckArea = assignYslice(ySlice, deckTop, p2, ny, zMax, zMin, write)
 print("pierArea = %d\t deckArea = %d\t"%(len(pierArea), len(deckArea)))
 
 #Step 4: Segment pierArea into base components
+zMax = 271.1416931152344#################################################################################################################################
 start = clock_msg('Final Segmenting of Pier Areas (step4) using histograms of point normals',start,begining)
 deck, pierCap, pier = finalSegmentation(pierArea,zMax,zMin,nb)
 
@@ -76,7 +77,7 @@ start = clock_msg('Combining All deck slices',start,begining)
 deck = combineDeck(deck, deckX, deckArea, deckTop)
 exportComponents(deck,pierCap,pier)
 
-clusterFlag = 0
+clusterFlag = 1
 if clusterFlag:
     #attempt to cluster the component point clouds (pier used for testing)
     start = clock_msg('Clustering Piers',start,begining)
@@ -118,14 +119,14 @@ if clusterFlag:
             res.append(data[index,:])
         return res
     
-    scale = 1
+    scale = 0
     bounds = np.zeros((len(clusterPier),4))
     for k in range(len(clusterPier)):
         bounds[k] = xyBounds(clusterPier[k], scale)
     cpFull = extract(pier, bounds)
     
     #cluster the pierCap next
-    scale = 1
+    scale = 0
     bounds = np.zeros((len(clusterPierCap),4))
     for k in range(len(clusterPierCap)):
         bounds[k] = xyBounds(clusterPierCap[k], scale)
