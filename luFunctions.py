@@ -24,9 +24,9 @@ def showStats(mat):
     print()
     
 def clock_msg(msg,start,begining):
-    #print('Delta: ' + str(round(time.perf_counter()-start,5)) + '\tTotal: ' + str(round(time.perf_counter()-begining,5)))
-    #print('\n' + msg)
-    #start = time.perf_counter()
+    print('Delta: ' + str(round(time.perf_counter()-start,5)) + '\tTotal: ' + str(round(time.perf_counter()-begining,5)))
+    print('\n' + msg)
+    start = time.perf_counter()
     return start
 
 def orientPCA(xyz_load):
