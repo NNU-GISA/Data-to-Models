@@ -24,7 +24,7 @@ rgb_load = np.asarray(pcd_load.colors)
 
 #Orient Bridge along x axis using PCA
 start = clock_msg('Orienting point cloud along x axis',start,begining)
-xyz_oriented = orientPCA(xyz_load)
+xyz_oriented, coef = orientPCA(xyz_load)
 
 '''
 print("Before:\n")
@@ -254,20 +254,28 @@ for i in range(len(pierArea)):
 
 start = clock_msg('Combining All deck slices',start,begining)
 
+#big_deck = []
+'''
 for i in range(len(step3d)):
     deck = np.vstack((deck,step3d[i]))
+    #big_deck.append(step3d[i])
 
 for i in range(len(deckArea)):
     deck = np.vstack((deck,deckArea[i]))
+    #big_deck.append(deckArea[i])
 
 for i in range(len(deckTop)):
     deck = np.vstack((deck,deckTop[i]))
+    #big_deck.append(deckTop[i])
+    
+   ''' 
+
 #consider a more efficient way of doing this. Doubling computational time is no bueno.
-'''
+
 sizeStep3d = 0
 sizeDeckArea = 0
 sizeDeckTop = 0
-
+#try looping over each row in each element of each list and add them row by row to deck
 for i in range(len(step3d)):
     sizeStep3d += len(step3d[i])
 
@@ -279,24 +287,35 @@ for i in range(len(deckTop)):
 
 deckSize = sizeStep3d + sizeDeckArea + sizeDeckTop + len(deck)
 bigDeck = np.empty((deckSize,3))
-pos = len(deck)
+pos = 0
+#transfer deck to bigDeck
+nex = len(deck)
+for k in range(len(deck)):
+    bigDeck[pos+k,:]=deck[k,:]
+
+#deck[pos:pos+nex,:]=step3d[i]    
+pos += nex
 for i in range(len(step3d)):
     nex = len(step3d[i])
-    deck[pos:pos+nex,:]=step3d[i]
+    for k in range(len(step3d[i])):
+        bigDeck[pos+k,:]=step3d[i][k,:]
+    #deck[pos:pos+nex,:]=step3d[i]    
     pos += nex
-
 for i in range(len(deckArea)):
     nex = len(deckArea[i])
-    deck[pos:pos+nex,:]=deckArea[i]
+    for k in range(len(deckArea[i])):
+        bigDeck[pos+k,:]=deckArea[i][k,:]
+    #deck[pos:pos+nex,:]=step3d[i]    
     pos += nex
-
 for i in range(len(deckTop)):
     nex = len(deckTop[i])
-    deck[pos:pos+nex,:]=deckTop[i]
+    for k in range(len(deckTop[i])):
+        bigDeck[pos+k,:]=deckTop[i][k,:]
+    #deck[pos:pos+nex,:]=step3d[i]    
     pos += nex
-'''
-start = clock_msg('Exporting Deck,PierCap, and Pier Point Sets',start,begining)
 
+start = clock_msg('Exporting Deck,PierCap, and Pier Point Sets',start,begining)
+deck = bigDeck
 green = np.diag(np.divide([0, 255, 0],255))
 pcd_export = open3d.PointCloud()
 pcd_export.points = open3d.Vector3dVector(deck)
@@ -315,9 +334,6 @@ pcd_export.points = open3d.Vector3dVector(pier)
 rgb = np.matmul(np.ones((len(pier),3)),blue)
 pcd_export.colors = open3d.Vector3dVector(rgb)
 open3d.write_point_cloud("../data/step4/pier.pcd", pcd_export)
-
-
-
 
 
 start = clock_msg('',start,begining)
