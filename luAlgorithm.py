@@ -1,6 +1,6 @@
-from luFunctions import clock_msg,orientPCA,sortSliceX,assignXslice,removeDeckTop,sliceY,assignYslice, finalSegmentation, combineDeck, exportComponents, exportComponentList
+from luFunctions import clock_msg,orientPCA,sortSliceX,assignXslice,removeDeckTop,sliceY,assignYslice, combineDeck, exportComponents, exportComponentList
 from alanFunctions import clusterComponents
-import salan_dbscan
+from localSurfaceSharingFunction import pierAreaSegmentation
 import numpy as np
 import open3d#for pcd file io, and point normal calculation
 #from sklearn import decomposition#for pca
@@ -8,8 +8,6 @@ import time
 #import bisect
 #from matplotlib import pyplot as plt#for histogram and 3d visualization
 #from mpl_toolkits.mplot3d import Axes3D#for 3d visualization
-import pandas as pd
-import hdbscan
 allTimes = False
 newTimes = True
 
@@ -47,7 +45,7 @@ xSlice, xyz = sortSliceX(xyz, xMin, xMax, nx)
     #for each slice, check it against a user defined weighting value
     #and move the slice to step3 or step4
 if allTimes: start = clock_msg('Assigning X slices (step2) as pier or deck areas',start,begining)
-write = False
+write = True
 deckX, notDeckX = assignXslice(xSlice, p1, zMax, zMin, write)
 
 
@@ -65,13 +63,14 @@ ySlice = sliceY(notDeckX,ny)
 #assign by user value
 if allTimes: start = clock_msg('Assigning Pier Areas (step3) as 20 pier or deck areas',start,begining)
 pierArea, deckArea = assignYslice(ySlice, deckTop, p2, ny, zMax, zMin, write)
+#np.save("pierArea.npy",pierArea)
 
 
 #Step 4: Segment pierArea into base components
 #bandaid fix zMax for now
-zMax = 271.1416931152344#################################################################################################################################
-if allTimes or newTimes: start = clock_msg('Final Segmenting of Pier Areas (step4) using histograms of point normals',start,begining)
-deck, pierCap, pier = finalSegmentation(pierArea,zMax,zMin,nb)
+#zMax = 271.1416931152344#################################################################################################################################
+if allTimes or newTimes: start = clock_msg('pierArea segmentation using element surface spreading',start,begining)
+deck, pierCap, pier, start = pierAreaSegmentation(pierArea,begining,start,write)
 
 #Combine all elements back into deck array by going row by row
 if allTimes or newTimes: start = clock_msg('Combining All deck slices',start,begining)

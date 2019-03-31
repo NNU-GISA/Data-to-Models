@@ -25,6 +25,7 @@ def xyBounds(xyz,delta):
     
 def extract(data, bounds):
         res = []
+        idx = []
         for i in range(len(bounds)):
             r1 = data[:,0]>=bounds[i,0]
             r2 = data[:,0]<=bounds[i,1]
@@ -32,7 +33,8 @@ def extract(data, bounds):
             r4 = data[:,1]<=bounds[i,3]
             index = (r1 & r2 & r3 & r4)
             res.append(data[index,:])
-        return res
+            idx.append(index)
+        return res, idx
 
 def clusterComponents(pier, pierCap,voxel_size, plot, start, begining):
     #attempt to cluster the component point clouds (pier used for testing)
@@ -58,15 +60,13 @@ def clusterComponents(pier, pierCap,voxel_size, plot, start, begining):
     bounds = np.zeros((len(clusterPier),4))
     for k in range(len(clusterPier)):
         bounds[k] = xyBounds(clusterPier[k], scale)
-    cpFull = extract(pier, bounds)
+    cpFull, index = extract(pier, bounds)
     
     #cluster the pierCap next
     scale = 0
     bounds = np.zeros((len(clusterPierCap),4))
     for k in range(len(clusterPierCap)):
         bounds[k] = xyBounds(clusterPierCap[k], scale)
-    cpcFull = extract(pierCap, bounds)
+    cpcFull, index = extract(pierCap, bounds)
     
     return cpFull, cpcFull, start
-
-

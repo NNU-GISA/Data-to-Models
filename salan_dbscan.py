@@ -36,6 +36,6 @@ def hdbscan_fun(blobs, plot):
                      markeredgecolor='k', markersize=10)
     print("Number of clusters found: %d\t"%(n_clusters_))
     plt.show()    
-    return clusters, labels_hdbscan    
+    return clusters, labels_hdbscan
     
     
