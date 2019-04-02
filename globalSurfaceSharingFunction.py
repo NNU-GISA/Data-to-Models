@@ -13,6 +13,9 @@ from matplotlib.pyplot import cm
 from matplotlib import pyplot as plt
 import bisect
 import time
+from scipy.optimize import leastsq
+import scipy.linalg
+from mpl_toolkits.mplot3d import Axes3D
 
 global color, debug
 debug = False
@@ -32,7 +35,7 @@ class Element():
         #Holds an array of z values of the lower bound of planar surfaces
         
         self.surf = []
-        
+        self.surfOriginal = []
         #Holds surf values stolen from adjacent nodes that did not exist 
         #in the elements area and have not been clustered yet
         self.surfTemp = []
@@ -65,6 +68,7 @@ class Element():
                     counter = 1
             for k in range(len(pos)):
                 self.surf.append(hist[1][pos[k]])
+        
             
             
             
@@ -76,6 +80,60 @@ class Element():
         rgb = np.matmul(np.ones((len(self.points),3)),np.diag(color))
         pcd_export.colors = open3d.Vector3dVector(rgb)
         open3d.write_point_cloud(filename, pcd_export)
+        
+def fitPlane(data):
+    XYZ = data.T
+    c = 0.001
+    p0 = [0.0001, 0.0001, c, c*data[0,2]]#guess that the solution is a flat plane through first data point
+    def f_min(X,p):
+        print(p)
+        plane_xyz = p[0:3]#data points x,y,z
+        distance = (plane_xyz*X.T).sum(axis=1) + p[3]
+        return distance / np.linalg.norm(plane_xyz)
+    
+    def residuals(params, signal, X):
+        return f_min(X, params)
+    
+    sol = leastsq(residuals, p0, args=(None, XYZ))[0]
+    print("Solution: ", sol)
+    print("Old Error: ", (f_min(XYZ, p0)**2).sum())
+    print("New Error: ", (f_min(XYZ, sol)**2).sum())
+    return sol
+
+def curveFit(data):
+    plot = False
+    xMin = np.min(data[:,0])
+    xMax = np.max(data[:,0])
+    yMin = np.min(data[:,1])
+    yMax = np.max(data[:,1])
+    #zMin = np.min(data[:,2])
+    #zMax = np.max(data[:,2])
+    X,Y = np.meshgrid(np.arange(xMin, xMax, 0.1), np.arange(yMin, yMax, 0.1))
+    
+    A = np.c_[data[:,0], data[:,1], np.ones(data.shape[0])]
+    C,_,_,_ = scipy.linalg.lstsq(A, data[:,2])    # coefficients
+    Z = C[0]*X + C[1]*Y + C[2]
+    res = []
+    for i in range(len(X[0,:])):
+        for j in range(len(Y)):
+            if len(res)==0:
+                res = np.array((X[0,i],Y[j,0],Z[j,i]))
+            else:
+                res = np.vstack((res,(X[0,i],Y[j,0],Z[j,i])))
+    if plot:
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        ax.plot_surface(X, Y, Z, rstride=1, cstride=1, alpha=0.2)
+        ax.scatter(data[:,0], data[:,1], data[:,2], c='r', s=50)
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.axis('equal')
+        ax.axis('tight')
+        plt.show()
+    return res
+
+        
 def extractIndex(data, bounds):
     r1 = data[:,0]>=bounds[0]
     r2 = data[:,0]<=bounds[1]
@@ -184,7 +242,25 @@ def updateSurf(e, zMin, zMax):
     e.surf = np.append(e.surf,e.surfTemp)
     e.surf.sort()
     return changed
-
+def extractSurfacePoints(eMat,cluster,nx,ny):
+    p = [[[] for i in range(len(eMat[0][0][0].surf))] for i in range(len(cluster))]
+    for k in range(len(cluster)):
+        for i in range(ny):
+            for j in range(nx):
+                #print("k=%d\ti=%d\tj=%d\t"%(k,i,j))
+                e = eMat[k][i][j]
+                bounds = eMat[k][i][j].bounds
+                cx = (bounds[1]-bounds[0])/2+bounds[0]
+                cy = (bounds[3]-bounds[2])/2+bounds[2]
+                for s in range(len(e.surf)):
+                    if len(e.surfOriginal) > 0:
+                        if e.surf[s] in e.surfOriginal:
+                            res = np.array((cx,cy,e.surf[s]))
+                            if len(p[k][s])==0:
+                                p[k][s] = res
+                            else:
+                                p[k][s] = np.vstack((p[k][s],res))
+    return p
 '''
 def mergeNeighbors(k,x,y,e,eMat,dx,dy,nx,ny,zMin,zMax):
     e.surfTemp = []
@@ -299,8 +375,8 @@ def pierAreaSegmentation(pierArea,begining,start,write):
     print('\n*Loading point cloud')
     #Note: this nx and ny are really nx' and ny'. 
     #They correspond to number of subdivisions per "Pier Cluster"
-    nx = 20
-    ny = 20
+    nx = 5
+    ny = 5
         
     pierSize = 0
     for i in range(len(pierArea)):
@@ -382,6 +458,8 @@ def pierAreaSegmentation(pierArea,begining,start,write):
         for x in range(ny):
             for y in range(nx):
                 eMat[k][x][y].clusterSurf()
+                eMat[k][x][y].surfOriginal = eMat[k][x][y].surf
+                eMat[k][x][y].surfOriginal.sort()
                 #print(surfPCD)
     
     
@@ -394,23 +472,7 @@ def pierAreaSegmentation(pierArea,begining,start,write):
     #Accept surfaces from adjacent dx,dy nodes (adjacent 8 squares if 1,1)
     dx=2
     dy=2
-    '''
-    k=0
-    x=3
-    y=2
-    mergeNeighbors(k,x,y,eMat[k][x][y],dx,dy,nx,ny)
-    '''
-    
-    #print(surfPCD)
-    '''
-    start = clock_msg('*Merge neighboring surfaces',start,begining)
-    for iterrations in range(1):
-        for k in range(len(cluster)):
-            for x in range(ny):
-                for y in range(nx):
-                    eMat[k][x][y].surf = mergeNeighbors(k,x,y,eMat[k][x][y],eMat,dx,dy,nx,ny,zMin,zMax)
-        #print(surfPCD)
-    '''
+
     start = clock_msg('*Spread surfaces to neighbors',start,begining)
     for iterrations in range(20):
         
@@ -421,15 +483,6 @@ def pierAreaSegmentation(pierArea,begining,start,write):
                     zMin = np.min(cluster[k][:,2])
                     zMax = np.max(cluster[k][:,2])
                     spreadNeighbors(k,x,y,eMat[k][x][y],eMat,dx,dy,nx,ny,zMin,zMax)
-        #SurfTemp export after itteration "itterations"
-        surfPCDtemp = createSurfTempPCD(nx,ny,eMat, cluster)
-        filename = "../data/elements/surfPCD_temp_" + str(iterrations) + ".pcd"
-        pcd_export = open3d.PointCloud()
-        color = np.diag(np.divide([255, 0, 0],255))
-        rgb = np.matmul(np.ones((len(surfPCDtemp),3)),color)
-        pcd_export.colors = open3d.Vector3dVector(rgb)
-        pcd_export.points = open3d.Vector3dVector(surfPCDtemp)
-        open3d.write_point_cloud(filename, pcd_export) 
         for k in range(len(cluster)):
             for x in range(ny):
                 for y in range(nx):
@@ -510,6 +563,30 @@ def pierAreaSegmentation(pierArea,begining,start,write):
     
     if write:
         exportComponents(deck,pierCap,pier)
+        
+    start = clock_msg('*Extract Surface Points and save',start,begining)
+    p = extractSurfacePoints(eMat,cluster,nx,ny)
+    for k in range(len(p)):
+        for layer in range(len(p[k])):
+            filename = "../data/elements/surfPCD_orig_" + str(k) + "," + str(layer) + ".pcd"
+            pcd_export = open3d.PointCloud()
+            color = np.diag(np.divide([255, 0, 255],255))
+            rgb = np.matmul(np.ones((len(p[k][layer]),3)),color)
+            pcd_export.colors = open3d.Vector3dVector(rgb)
+            res = np.array((p[k][layer]))
+            pcd_export.points = open3d.Vector3dVector(res)
+            open3d.write_point_cloud(filename, pcd_export)
+            
+            res = curveFit(p[k][layer])
+            filename = "../data/elements/surfPCD_Plane_" + str(k) + "," + str(layer) + ".pcd"
+            pcd_export = open3d.PointCloud()
+            color = np.diag(np.divide([0, 0, 0],255))
+            rgb = np.matmul(np.ones((len(res),3)),color)
+            pcd_export.colors = open3d.Vector3dVector(rgb)
+            pcd_export.points = open3d.Vector3dVector(res)
+            open3d.write_point_cloud(filename, pcd_export)
+    start = clock_msg('',start,begining)
+    #return p
     return deck, pierCap, pier, start
 
 
@@ -518,13 +595,10 @@ def pierAreaSegmentation(pierArea,begining,start,write):
 begining = time.perf_counter()
 start = begining
 write = True
-print('\nLoading point cloud')
 pierArea = np.load("pierArea.npy")
 
 deck, pierCap, pier, start = pierAreaSegmentation(pierArea,begining,start,write)
 
+#p = pierAreaSegmentation(pierArea,begining,start,write)
+
 '''
-
-
-
-

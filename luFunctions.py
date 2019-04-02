@@ -96,7 +96,7 @@ def removeDeckTop(notDeckX, write):
         yMax = np.max(notDeckX[i][:,1])
         zMax = np.max(notDeckX[i][:,2])
         deltaY = (yMax-yMin)
-        deltaZ = 0.05*deltaY
+        deltaZ = 0.1*deltaY
         notDeckX[i] = notDeckX[i][np.argsort(notDeckX[i][:,2]), :]
         BR = bisect.bisect_left(notDeckX[i][:,2],zMax-deltaZ)
         deckTop.append(notDeckX[i][BR:,:])
@@ -189,9 +189,11 @@ def sliceY(notDeckX,ny):
         yMax = np.max(slic[:,1])
         delta = (1/ny)*(yMax-yMin)
         slic = slic[np.argsort(slic[:,1]), :]
-        for i in range(20):
-            BR = bisect.bisect_left(slic[:,1],delta*(i+1)+yMin)
-            ySlice_hold.append(slic[BL:BR,:])
+        for j in range(ny):
+            BR = bisect.bisect_left(slic[:,1],delta*(j+1)+yMin)
+            slicTemp = slic[BL:BR,:]
+            if len(slicTemp)>0:
+                ySlice_hold.append(slicTemp)
             BL = BR
         
         ySlice.append(ySlice_hold)
@@ -211,12 +213,13 @@ def assignYslice(ySlice, deckTop, p2, ny, zMax, zMin, write):
         #entirely accurate. If issues arise, consider finding
         #the local zmax for each box seperately
         localZmax = np.max(deckTop[k][:,2])
-        for i in range(ny):#20 y slices per x slice
-            
+        for i in range(len(ySlice[k])):
+            #print("k=%d\ti=%d\t"%(k,i))
             pcd_export = open3d.PointCloud()
             pcd_export.points = open3d.Vector3dVector(ySlice[k][i])
             localZmin = np.min(ySlice[k][i][:,2])
             #localZmax = np.max(ySlice[k][i][:,2])
+            
             
             if (localZmax-localZmin)>p2*(zMax-zMin):
                 rgb = np.matmul(np.ones((len(ySlice[k][i]),3)),blue)

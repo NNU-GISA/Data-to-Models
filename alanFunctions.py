@@ -45,28 +45,37 @@ def clusterComponents(pier, pierCap,voxel_size, plot, start, begining):
     xyz= np.asarray(pcd.points)
     clusterPier, labelsPier = salan_dbscan.hdbscan_fun(xyz,plot)
     
-    start = clock_msg('Clustering PierCaps',start,begining)
-    pcd = open3d.PointCloud()
-    pcd.points = open3d.Vector3dVector(pierCap)
-    pcd = open3d.voxel_down_sample(pcd, voxel_size = 0.1)
-    xyz= np.asarray(pcd.points)
-    clusterPierCap, labelsPierCap = salan_dbscan.hdbscan_fun(xyz,plot)
-    
-    #using the clustering data, find the bounding boxes for each 
-    #cluster and extract those points from the FULL point set
-    
-
     scale = 0
     bounds = np.zeros((len(clusterPier),4))
     for k in range(len(clusterPier)):
         bounds[k] = xyBounds(clusterPier[k], scale)
     cpFull, index = extract(pier, bounds)
     
+    start = clock_msg('Clustering PierCaps',start,begining)
+    if len(pierCap)>0:
+        #print(pierCap)
+        pcd = open3d.PointCloud()
+        pcd.points = open3d.Vector3dVector(pierCap)
+        pcd = open3d.voxel_down_sample(pcd, voxel_size = 0.1)
+        xyz= np.asarray(pcd.points)
+        clusterPierCap, labelsPierCap = salan_dbscan.hdbscan_fun(xyz,plot)
+        
+        scale = 0
+        bounds = np.zeros((len(clusterPierCap),4))
+        for k in range(len(clusterPierCap)):
+            bounds[k] = xyBounds(clusterPierCap[k], scale)
+        cpcFull, index = extract(pierCap, bounds)
+    else:
+        cpcFull = []
+        
+    
+    #using the clustering data, find the bounding boxes for each 
+    #cluster and extract those points from the FULL point set
+    
+
+    
+    
     #cluster the pierCap next
-    scale = 0
-    bounds = np.zeros((len(clusterPierCap),4))
-    for k in range(len(clusterPierCap)):
-        bounds[k] = xyBounds(clusterPierCap[k], scale)
-    cpcFull, index = extract(pierCap, bounds)
+    
     
     return cpFull, cpcFull, start
