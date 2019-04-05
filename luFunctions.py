@@ -367,12 +367,12 @@ def exportComponents(deck,pierCap, pier):
     rgb = np.matmul(np.ones((len(deck),3)),red)
     pcd_export.colors = open3d.Vector3dVector(rgb)
     open3d.write_point_cloud("../data/step4/deck.pcd", pcd_export)
-    
-    pcd_export = open3d.PointCloud()
-    pcd_export.points = open3d.Vector3dVector(pierCap)
-    rgb = np.matmul(np.ones((len(pierCap),3)),green)
-    pcd_export.colors = open3d.Vector3dVector(rgb)
-    open3d.write_point_cloud("../data/step4/pierCap.pcd", pcd_export)
+    if pierCap.size!=0:
+        pcd_export = open3d.PointCloud()
+        pcd_export.points = open3d.Vector3dVector(pierCap)
+        rgb = np.matmul(np.ones((len(pierCap),3)),green)
+        pcd_export.colors = open3d.Vector3dVector(rgb)
+        open3d.write_point_cloud("../data/step4/pierCap.pcd", pcd_export)
     
     pcd_export = open3d.PointCloud()
     pcd_export.points = open3d.Vector3dVector(pier)

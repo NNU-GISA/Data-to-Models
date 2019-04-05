@@ -52,7 +52,7 @@ def clusterComponents(pier, pierCap,voxel_size, plot, start, begining):
     cpFull, index = extract(pier, bounds)
     
     start = clock_msg('Clustering PierCaps',start,begining)
-    if len(pierCap)>0:
+    if pierCap.size!=0:
         #print(pierCap)
         pcd = open3d.PointCloud()
         pcd.points = open3d.Vector3dVector(pierCap)

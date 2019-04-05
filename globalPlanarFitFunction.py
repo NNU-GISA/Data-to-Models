@@ -59,7 +59,7 @@ class Element():
             self.surfPoints = self.points[index,:]
             index2 = self.surfPoints[:,2]>(0.5*(self.zMax-self.zMin)+self.zMin)
             self.surfPoints = self.surfPoints[index2,:]
-            nb = 50
+            nb = 10
             hist = np.histogram(self.surfPoints[:,2],range=(0.5*(self.zMax-self.zMin)+self.zMin,self.zMax), bins=nb)
             ind = hist[0]>300*(50/nb)
             pos = np.where(ind)[0]
@@ -228,8 +228,9 @@ def createPosRight(pos):
 def histCluster(points,zMin,zMax,surf):
     
     res = []
-    nb = 50
+    nb = 10
     dz = zMax-zMin
+    if debug: print("dz: %3.3f, zMin: %3.3f, zMax: %3.3f"%(dz,zMin,zMax))
     hist = np.histogram(points,range=(0.5*(dz)+zMin,zMax), bins=nb)
     
     #hist = plt.hist(points,range=(0.5*(dz)+zMin,zMax), bins=nb)
@@ -253,6 +254,7 @@ def histCluster(points,zMin,zMax,surf):
         pSub = points[index]
         
         #if {e.surf} in {pSub} -> continue
+        #if the upper or lower edge of the surface are 
         index2 = ((surf>left-dz/10)&(surf<right+dz/10))
         if debug:
             print("Left=%3.3f\tRight=%3.3f\t"%(left,right))
@@ -261,14 +263,14 @@ def histCluster(points,zMin,zMax,surf):
             print("index2 = " + str(index2))
         
         if np.any(index2):
-            #print("Continuing because surface already exists")
+            if debug: print("Continuing because surface already exists")
             continue
         if len(pSub)==0:
-            #print("Continuing because no points found in surfTemp to append")
+            if debug: print("Continuing because no points found in surfTemp to append")
             continue
         #print(pSub)
         result = (np.max(pSub)-np.min(pSub))/2+np.min(pSub)
-        #print("Appending %3.3f to surf"%result)
+        if debug: print("Appending %3.3f to surf"%result)
         res.append(result)
     return res
         
@@ -290,8 +292,7 @@ def spreadNeighbors(k,x,y,e,eMat,dx,dy,nx,ny,zMin,zMax):
                 eMat[k][i][j].surfTemp = np.append(eMat[k][i][j].surfTemp,e.surf)
 def updateSurf(e, zMin, zMax):
     if debug:
-        if len(e.surf)<2:
-            print("*"*100)
+        print("*"*100)
         print("e.surf = " +str(e.surf))
         print("e.surfTemp = " +str(e.surfTemp))
     e.surfTemp = histCluster(e.surfTemp,zMin,zMax,e.surf)
@@ -342,6 +343,8 @@ def segmentNorms(eMat, cluster, nx, ny):
                     #print("BL=%d\tBR=%d\td=%d\t"%(BL,BR,divider[d]))
                     e.clusteredSurfPoints.append(e.surfPoints[BL:BR,:])
                     BL = BR
+                if len(divider)==0:
+                    BR=0
                 e.clusteredSurfPoints.append(e.surfPoints[BR:,:])
 
                 for noti in range(numSurf):
@@ -436,13 +439,13 @@ def exportComponents(deck,pierCap, pier):
     rgb = np.matmul(np.ones((len(deck),3)),red)
     pcd_export.colors = open3d.Vector3dVector(rgb)
     open3d.write_point_cloud("../data/elements/deck.pcd", pcd_export)
-    
-    pcd_export = open3d.PointCloud()
-    pcd_export.points = open3d.Vector3dVector(pierCap)
-    rgb = np.matmul(np.ones((len(pierCap),3)),green)
-    pcd_export.colors = open3d.Vector3dVector(rgb)
-    open3d.write_point_cloud("../data/elements/pierCap.pcd", pcd_export)
-    
+    if pierCap.size!=0:
+        pcd_export = open3d.PointCloud()
+        pcd_export.points = open3d.Vector3dVector(pierCap)
+        rgb = np.matmul(np.ones((len(pierCap),3)),green)
+        pcd_export.colors = open3d.Vector3dVector(rgb)
+        open3d.write_point_cloud("../data/elements/pierCap.pcd", pcd_export)
+        
     pcd_export = open3d.PointCloud()
     pcd_export.points = open3d.Vector3dVector(pier)
     rgb = np.matmul(np.ones((len(pier),3)),blue)
@@ -508,7 +511,6 @@ def createEB_x(bounds, k, x, ny):
 
 
 '''
-
 begining = time.perf_counter()
 start = begining
 write = True
@@ -609,7 +611,7 @@ def pierAreaSegmentation(pierArea,begining,start,write):
                 eMat[k][x][y].surfOriginal = eMat[k][x][y].surf
                 eMat[k][x][y].surfOriginal.sort()
                 numSurf = len(eMat[k][x][y].surfOriginal)
-                if numSurf > len(surfOrigCount):
+                if numSurf >= len(surfOrigCount):
                     for i in range(numSurf-len(surfOrigCount)+1):
                         surfOrigCount.append(0)
                 surfOrigCount[numSurf]+=1
@@ -664,7 +666,7 @@ def pierAreaSegmentation(pierArea,begining,start,write):
             for x in range(ny):
                 for y in range(nx):
                     numSurf = len(eMat[k][x][y].surf)
-                    if numSurf > len(surfTotalCount):
+                    if numSurf >= len(surfTotalCount):
                         for i in range(numSurf-len(surfTotalCount)+1):
                             surfTotalCount.append(0)
                     surfTotalCount[numSurf]+=1
@@ -866,10 +868,10 @@ def pierAreaSegmentation(pierArea,begining,start,write):
     
     if write:
         exportComponents(deck,pierCap,pier)   
-
-
-#start = clock_msg('',start,begining)
-#return p
+    
+    
+    #start = clock_msg('',start,begining)
+    #return p
     return deck, pierCap, pier, start
 
 

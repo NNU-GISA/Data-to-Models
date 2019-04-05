@@ -8,7 +8,7 @@ import time
 #import bisect
 #from matplotlib import pyplot as plt#for histogram and 3d visualization
 #from mpl_toolkits.mplot3d import Axes3D#for 3d visualization
-allTimes = False
+allTimes = True
 newTimes = True
 write = False
 #set manual factors
@@ -25,7 +25,7 @@ begining = time.perf_counter()
 start = begining
 if allTimes: print('\nLoading point cloud')
 else: print('\nStarting Lu Portion of Algorithm')
-#pcd_load = open3d.read_point_cloud("..\data\Bridge2Cleaned.pcd")
+#pcd_load = open3d.read_point_cloud("..\data\Bridge7Cleaned.pcd")
 pcd_load = open3d.read_point_cloud("..\data\Bridge1ExtraClean.pcd")
 xyz_load = np.asarray(pcd_load.points)
 rgb_load = np.asarray(pcd_load.colors)
@@ -66,8 +66,8 @@ ySlice = sliceY(notDeckX,ny)
 
 #assign by user value
 if allTimes: start = clock_msg('Assigning Pier Areas (step3) as 20 pier or deck areas',start,begining)
-pierArea, deckArea = assignYslice(ySlice, deckTop, p2, ny, zMax, zMin, write)
-#np.save("pierArea.npy",pierArea)
+pierArea, deckArea = assignYslice(ySlice, deckTop, p2, ny, zMax, zMin, False)
+np.save("pierArea.npy",pierArea)
 
 
 #Step 4: Segment pierArea into base components
