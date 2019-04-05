@@ -1,6 +1,6 @@
 from luFunctions import clock_msg,orientPCA,sortSliceX,assignXslice,removeDeckTop,sliceY,assignYslice, combineDeck, exportComponents, exportComponentList
 from alanFunctions import clusterComponents
-from globalSurfaceSharingFunction import pierAreaSegmentation
+from globalPlanarFitFunction import pierAreaSegmentation
 import numpy as np
 import open3d#for pcd file io, and point normal calculation
 #from sklearn import decomposition#for pca
@@ -16,8 +16,9 @@ write = False
 #p1=35 p2=30 for bridge2
 p1 = 0.25;
 p2 = 0.30;
-nx = 200;
-ny = 50;
+#nx = 200, ny=50 was working for bridge1
+nx = 50;
+ny = 10;
 nb = 100;
 
 begining = time.perf_counter()
@@ -66,7 +67,7 @@ ySlice = sliceY(notDeckX,ny)
 #assign by user value
 if allTimes: start = clock_msg('Assigning Pier Areas (step3) as 20 pier or deck areas',start,begining)
 pierArea, deckArea = assignYslice(ySlice, deckTop, p2, ny, zMax, zMin, write)
-np.save("pierArea.npy",pierArea)
+#np.save("pierArea.npy",pierArea)
 
 
 #Step 4: Segment pierArea into base components

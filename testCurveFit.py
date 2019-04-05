@@ -20,7 +20,7 @@ X,Y = np.meshgrid(np.arange(-3.0, 3.0, 0.5), np.arange(-3.0, 3.0, 0.5))
 XX = X.flatten()
 YY = Y.flatten()
 
-order = 1    # 1: linear, 2: quadratic
+order = 2    # 1: linear, 2: quadratic
 if order == 1:
     # best-fit linear plane
     A = np.c_[data[:,0], data[:,1], np.ones(data.shape[0])]
