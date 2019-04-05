@@ -17,8 +17,8 @@ write = False
 p1 = 0.25;
 p2 = 0.30;
 #nx = 200, ny=50 was working for bridge1
-nx = 50;
-ny = 10;
+nx = 500;
+ny = 100;
 nb = 100;
 
 begining = time.perf_counter()

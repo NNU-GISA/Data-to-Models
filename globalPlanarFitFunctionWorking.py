@@ -149,11 +149,6 @@ def curveFitQuad(data):
     C,_,_,_ = scipy.linalg.lstsq(A, data[:,2])
     return C
 
-def curveFitLinear(data):
-    A = np.c_[data[:,0], data[:,1], np.ones(data.shape[0])]
-    C,_,_,_ = scipy.linalg.lstsq(A, data[:,2])    # coefficients
-    return C
-
 #given the coef for the equation of a plane in 3d and a data set
     #find and return the zMin and zMax within the data range
 def findZBoundVals(C,data):
@@ -506,330 +501,329 @@ def createEB_x(bounds, k, x, ny):
     return boundExport
 
 
-'''
+
 
 begining = time.perf_counter()
 start = begining
 write = True
 pierArea = np.load("pierArea.npy")
-'''
 
-def pierAreaSegmentation(pierArea,begining,start,write):   
-    print('\n*Loading point cloud')
-    #Note: this nx and ny are really nx' and ny'. 
-    #They correspond to number of subdivisions per "Pier Cluster"
-    nx = 5
-    ny = 5
-        
-    pierSize = 0
-    for i in range(len(pierArea)):
-        pierSize += len(pierArea[i])
-        
-    bigPierArea = np.empty((pierSize,3))
-    pos = 0
-    nex = 0
-    for i in range(len(pierArea)):
-        nex = len(pierArea[i])
-        for j in range(len(pierArea[i])):
-            bigPierArea[pos+j,:] = pierArea[i][j,:]
-        pos += nex
+
+#def pierAreaSegmentation(pierArea,begining,start,write):   
+print('\n*Loading point cloud')
+#Note: this nx and ny are really nx' and ny'. 
+#They correspond to number of subdivisions per "Pier Cluster"
+nx = 5
+ny = 5
     
-    dz = np.max(bigPierArea[:,2])-np.min(bigPierArea[:,2])
-        
-    start = clock_msg('*Compute Normals',start,begining)
+pierSize = 0
+for i in range(len(pierArea)):
+    pierSize += len(pierArea[i])
     
-    pcd = open3d.PointCloud()
-    pcd.points = open3d.Vector3dVector(bigPierArea)
-    open3d.estimate_normals(pcd, search_param = open3d.KDTreeSearchParamHybrid(radius = 0.1, max_nn = 30))
-    normals = np.asarray(pcd.normals)
-        
-    start = clock_msg('*Cluster by pier group',start,begining)
+bigPierArea = np.empty((pierSize,3))
+pos = 0
+nex = 0
+for i in range(len(pierArea)):
+    nex = len(pierArea[i])
+    for j in range(len(pierArea[i])):
+        bigPierArea[pos+j,:] = pierArea[i][j,:]
+    pos += nex
+
+dz = np.max(bigPierArea[:,2])-np.min(bigPierArea[:,2])
     
-    pcd = open3d.voxel_down_sample(pcd, voxel_size = 0.2)
-    xyz= np.asarray(pcd.points)
-    plot = False
-    cluster, labels = salan_dbscan.hdbscan_fun(xyz,plot)
+start = clock_msg('*Compute Normals',start,begining)
+
+pcd = open3d.PointCloud()
+pcd.points = open3d.Vector3dVector(bigPierArea)
+open3d.estimate_normals(pcd, search_param = open3d.KDTreeSearchParamHybrid(radius = 0.1, max_nn = 30))
+normals = np.asarray(pcd.normals)
     
-    scale = 0
-    bounds = np.zeros((len(cluster),4))
+start = clock_msg('*Cluster by pier group',start,begining)
+
+pcd = open3d.voxel_down_sample(pcd, voxel_size = 0.2)
+xyz= np.asarray(pcd.points)
+plot = False
+cluster, labels = salan_dbscan.hdbscan_fun(xyz,plot)
+
+scale = 0
+bounds = np.zeros((len(cluster),4))
+for k in range(len(cluster)):
+    bounds[k] = xyBounds(cluster[k], scale)
+
+    
+#Now for each cluster we have: bounds, points, normals
+#Next step: Slice into cubes
+start = clock_msg('*Populate the element objects',start,begining)
+eMat = []
+pierAreaSub = []
+normSub = []
+#pierAreaSubX = []
+#normSubX= []
+plot = False
+if plot:
+    fig, ax = plt.subplots()
+for k in range(len(cluster)):
+    color = iter(cm.rainbow(np.linspace(0,1,nx*ny)))
+    e = [[[] for x in range(nx)] for x in range(ny)]
+    zMin = np.min(cluster[k][:,2])
+    zMax = np.max(cluster[k][:,2])
+    #boundExport = [[np.zeros(4) for x in range(nx)] for x in range(ny)]
+    #DeltaX_length = 
+    index = extractIndex(bigPierArea,bounds[k])
+    pierAreaSub.append(bigPierArea[index,:])
+    normSub.append(normals[index,:])
+    for x in range(ny):
+        #Consider slicing in the x direction before cubing the data
+        #time to beat: 1.73 seconds
+        #BEx = createEB_x(bounds, k, x, ny)
+        #index = extractIndex(bigPierArea,BEx)
+        #pierAreaSubX.append(bigPierArea[index,:])
+        #normSubX.append(normals[index,:])
+        for y in range(nx):
+            #print("k=%d\tx=%d\ty=%d\t"%(k,x,y))
+            boundExport = createExportBounds(bounds, k, x, y, ny, nx)
+            index = extractIndex(pierAreaSub[k], boundExport)
+            pointsExport = pierAreaSub[k][index,:]
+            normalsExport = normSub[k][index,:]
+            e[x][y] = Element(k,x,y,pointsExport,normalsExport,next(color)[0:3],zMin,zMax,boundExport)
+            if plot:
+                ax.vlines(boundExport[0],ymin=boundExport[2],ymax=boundExport[3])
+                ax.vlines(boundExport[1],ymin=boundExport[2],ymax=boundExport[3])
+                ax.hlines(boundExport[2],xmin=boundExport[0],xmax=boundExport[1])
+                ax.hlines(boundExport[3],xmin=boundExport[0],xmax=boundExport[1])
+    eMat.append(e)
+    
+start = clock_msg('*Cluster Element Surfaces',start,begining)
+for k in range(len(cluster)):
+    for x in range(ny):
+        for y in range(nx):
+            eMat[k][x][y].clusterSurf()
+            eMat[k][x][y].surfOriginal = eMat[k][x][y].surf
+            eMat[k][x][y].surfOriginal.sort()
+            #print(surfPCD)
+
+
+
+
+ 
+  
+surfPCD = createSurfPCD(nx,ny,eMat, cluster)
+
+#Accept surfaces from adjacent dx,dy nodes (adjacent 8 squares if 1,1)
+dx=2
+dy=2
+
+start = clock_msg('*Spread surfaces to neighbors',start,begining)
+for iterrations in range(20):
+    
+    changed = 0
     for k in range(len(cluster)):
-        bounds[k] = xyBounds(cluster[k], scale)
-    
-        
-    #Now for each cluster we have: bounds, points, normals
-    #Next step: Slice into cubes
-    start = clock_msg('*Populate the element objects',start,begining)
-    eMat = []
-    pierAreaSub = []
-    normSub = []
-    #pierAreaSubX = []
-    #normSubX= []
-    plot = False
-    if plot:
-        fig, ax = plt.subplots()
-    for k in range(len(cluster)):
-        color = iter(cm.rainbow(np.linspace(0,1,nx*ny)))
-        e = [[[] for x in range(nx)] for x in range(ny)]
-        zMin = np.min(cluster[k][:,2])
-        zMax = np.max(cluster[k][:,2])
-        #boundExport = [[np.zeros(4) for x in range(nx)] for x in range(ny)]
-        #DeltaX_length = 
-        index = extractIndex(bigPierArea,bounds[k])
-        pierAreaSub.append(bigPierArea[index,:])
-        normSub.append(normals[index,:])
         for x in range(ny):
-            #Consider slicing in the x direction before cubing the data
-            #time to beat: 1.73 seconds
-            #BEx = createEB_x(bounds, k, x, ny)
-            #index = extractIndex(bigPierArea,BEx)
-            #pierAreaSubX.append(bigPierArea[index,:])
-            #normSubX.append(normals[index,:])
             for y in range(nx):
                 #print("k=%d\tx=%d\ty=%d\t"%(k,x,y))
-                boundExport = createExportBounds(bounds, k, x, y, ny, nx)
-                index = extractIndex(pierAreaSub[k], boundExport)
-                pointsExport = pierAreaSub[k][index,:]
-                normalsExport = normSub[k][index,:]
-                e[x][y] = Element(k,x,y,pointsExport,normalsExport,next(color)[0:3],zMin,zMax,boundExport)
-                if plot:
-                    ax.vlines(boundExport[0],ymin=boundExport[2],ymax=boundExport[3])
-                    ax.vlines(boundExport[1],ymin=boundExport[2],ymax=boundExport[3])
-                    ax.hlines(boundExport[2],xmin=boundExport[0],xmax=boundExport[1])
-                    ax.hlines(boundExport[3],xmin=boundExport[0],xmax=boundExport[1])
-        eMat.append(e)
-        
-    start = clock_msg('*Cluster Element Surfaces',start,begining)
+                zMin = np.min(cluster[k][:,2])
+                zMax = np.max(cluster[k][:,2])
+                spreadNeighbors(k,x,y,eMat[k][x][y],eMat,dx,dy,nx,ny,zMin,zMax)
     for k in range(len(cluster)):
         for x in range(ny):
             for y in range(nx):
-                eMat[k][x][y].clusterSurf()
-                eMat[k][x][y].surfOriginal = eMat[k][x][y].surf
-                eMat[k][x][y].surfOriginal.sort()
-                #print(surfPCD)
+                #print("k=%d\tx=%d\ty=%d\t"%(k,x,y))
+                zMin = np.min(cluster[k][:,2])
+                zMax = np.max(cluster[k][:,2])
+                changed += updateSurf(eMat[k][x][y], zMin, zMax)
+    print("Itteration %d, Changed %d"%(iterrations, changed))
+    if changed == 0:
+        break
     
-    
-    
-    
-     
-      
-    surfPCD = createSurfPCD(nx,ny,eMat, cluster)
-    
-    #Accept surfaces from adjacent dx,dy nodes (adjacent 8 squares if 1,1)
-    dx=2
-    dy=2
-    
-    start = clock_msg('*Spread surfaces to neighbors',start,begining)
-    for iterrations in range(20):
-        
-        changed = 0
-        for k in range(len(cluster)):
-            for x in range(ny):
-                for y in range(nx):
-                    #print("k=%d\tx=%d\ty=%d\t"%(k,x,y))
-                    zMin = np.min(cluster[k][:,2])
-                    zMax = np.max(cluster[k][:,2])
-                    spreadNeighbors(k,x,y,eMat[k][x][y],eMat,dx,dy,nx,ny,zMin,zMax)
-        for k in range(len(cluster)):
-            for x in range(ny):
-                for y in range(nx):
-                    #print("k=%d\tx=%d\ty=%d\t"%(k,x,y))
-                    zMin = np.min(cluster[k][:,2])
-                    zMax = np.max(cluster[k][:,2])
-                    changed += updateSurf(eMat[k][x][y], zMin, zMax)
-        print("Itteration %d, Changed %d"%(iterrations, changed))
-        if changed == 0:
-            break
-        
-                    
-        #print(surfPCD)
-    if write:
-        start = clock_msg('*Exporting Everything',start,begining)
-        
-        filename = "../data/elements/surfPCD.pcd"
-        pcd_export = open3d.PointCloud()
-        pcd_export.points = open3d.Vector3dVector(surfPCD)
-        open3d.write_point_cloud(filename, pcd_export)
-        filename = "../data/elements/surfPCD.pcd"
-        pcd_export = open3d.PointCloud()
-        pcd_export.points = open3d.Vector3dVector(surfPCD)
-        open3d.write_point_cloud(filename, pcd_export)  
-        
-        #print("After Merge")
-        surfPCDmerged = createSurfPCD(nx,ny,eMat, cluster)
-        filename = "../data/elements/surfPCD_merged.pcd"
-        pcd_export = open3d.PointCloud()
-        color = np.diag(np.divide([0, 255, 0],255))
-        rgb = np.matmul(np.ones((len(surfPCDmerged),3)),color)
-        pcd_export.colors = open3d.Vector3dVector(rgb)
-        pcd_export.points = open3d.Vector3dVector(surfPCDmerged)
-        open3d.write_point_cloud(filename, pcd_export) 
-        
-    
-        
-    
-    #start = clock_msg('*Extract Surface Points and save',start,begining)
-    
-    start = clock_msg('*Combining surface points using clustering of normals',start,begining)
-    surfPointsCombined = segmentNorms(eMat,cluster,nx,ny)
-    '''
-    for k in range(len(surfPointsCombined)):
-        for layer in range(len(surfPointsCombined[k])):
-            filename = "../data/elements/surfPCD_all_" + str(k) + "," + str(layer) + ".pcd"
-            pcd_export = open3d.PointCloud()
-            if layer == 0:
-                color = np.diag(np.divide([255, 255, 255],255))
-            else:
-                color = np.diag(np.divide([0, 0, 0],255))
-            rgb = np.matmul(np.ones((len(surfPointsCombined[k][layer]),3)),color)
-            pcd_export.colors = open3d.Vector3dVector(rgb)
-            res = np.array((surfPointsCombined[k][layer]))
-            pcd_export.points = open3d.Vector3dVector(res)
-            open3d.write_point_cloud(filename, pcd_export)
-            
-            
-            res, eq = curveFit(surfPointsCombined[k][layer])
-            filename = "../data/elements/surfPCD_Plane_" + str(k) + "," + str(layer) + ".pcd"
-            pcd_export = open3d.PointCloud()
-            color = np.diag(np.divide([255, 0, 255],255))
-            rgb = np.matmul(np.ones((len(res),3)),color)
-            pcd_export.colors = open3d.Vector3dVector(rgb)
-            pcd_export.points = open3d.Vector3dVector(res)
-            open3d.write_point_cloud(filename, pcd_export)
-    '''
-    start = clock_msg('*Subslice the elements into components',start,begining)
-    #Next step is to use the surfaces to split the pier, piercap, and deck
-    deck = []
-    pierCap = []
-    pier = []
-    
-    B = []
-    #dz = zMax-zMin
-    delta = 0.005
-    numSurf = len(eMat[0][0][0].surf)
-    pierArray = []
-    pierCapArray = []
-    deckArray = []
-    #The subset of points that lie on the pier - Deck or pierCap - Deck interface
-    rem_PD_Sub = [[] for i in range(len(cluster))]
-    #The subset of points lying on the pier - pierCap interface
-    rem_PC_Sub = [[] for i in range(len(cluster))]
-    flag1 = False
-    
-    for k in range(len(cluster)):
-        flag2 = False
-        zBounds = []
-        pierAreaSub[k] = pierAreaSub[k][np.argsort(pierAreaSub[k][:,2]), :]
-        
-        #For each layer, extract the min/max points of the planes
-        #   Consider doing this to each element instead of each cluster if speed becomes an issue
-        #   (Will cause less points to need to be compared to the planes)
-        for layer in range(numSurf):
-            _,eq = curveFit(surfPointsCombined[k][layer])
-            res = findZBoundVals(eq,pierAreaSub[k])
-            index = findZIndex(res, pierAreaSub[k])
-            zBounds.append(index[0])
-            zBounds.append(index[1])
-        #For each layer, use the bounds found to quickly extract the slices
-        #which correspond to pier/deck/ect.
-        for layer in range(numSurf):
-            if (not flag1):
-                if numSurf == 1:
-                    pier = pierAreaSub[k][:zBounds[0],:]
-                    deck = pierAreaSub[k][zBounds[1]:,:]
-    
-                elif numSurf == 2:
-                    pier = pierAreaSub[k][:zBounds[0],:]
-                    pierCap = pierAreaSub[k][zBounds[1]:zBounds[2],:]
-                    deck = pierAreaSub[k][zBounds[3]:,:]
-    
-                else:
-                    print("*"*100)
-                    print("Critical Error. Only 1 or 2 surfaces currently supported. Found " + str(len(numSurf)))
-                    print("*"*100)
-                flag1 = True
-            else:
-                if numSurf == 1:
-                    pier = np.vstack((pier,pierAreaSub[k][:zBounds[0],:]))
-                    deck = np.vstack((deck,pierAreaSub[k][zBounds[1]:,:]))
-    
-                elif numSurf == 2:
-                    pier = np.vstack((pier,pierAreaSub[k][:zBounds[0],:]))
-                    pierCap = np.vstack((pierCap,pierAreaSub[k][zBounds[1]:zBounds[2],:]))
-                    deck = np.vstack((deck,pierAreaSub[k][zBounds[3]:,:]))
-    
-                    
-                    
-                    
-            if (not flag2):
-                if numSurf == 1:
-                    rem_PD_Sub[k] = pierAreaSub[k][zBounds[0]:zBounds[1],:]
-                elif numSurf == 2:
-                    rem_PC_Sub[k] = pierAreaSub[k][zBounds[0]:zBounds[1],:]
-                    rem_PD_Sub[k] = pierAreaSub[k][zBounds[2]:zBounds[3],:]
-                flag2 = True
-            else:
-                if numSurf == 1:
-                    rem_PD_Sub[k] = np.vstack((rem_PD_Sub[k],pierAreaSub[k][zBounds[0]:zBounds[1],:]))
-                elif numSurf == 2:
-                    rem_PC_Sub[k] = np.vstack((rem_PC_Sub[k],pierAreaSub[k][zBounds[0]:zBounds[1],:]))
-                    rem_PD_Sub[k] = np.vstack((rem_PD_Sub[k],pierAreaSub[k][zBounds[2]:zBounds[3],:]))
                 
-        #For each layer, compare each point to it's corresponding planar value
-        #and decide where to put it
-            
-        #want about 0.1 meter offset for the deck-pierCap inerface
-        deltaTop = dz/200
-        deltaBot = dz/200
-        #Z = np.dot(np.c_[np.ones(XX.shape), XX, YY, XX*YY, XX**2, YY**2], C).reshape(X.shape)
-        if numSurf == 1:
-            C = curveFitQuad(surfPointsCombined[k][0])
-            for point in rem_PD_Sub[k]:
-                x = point[0]
-                y = point[1]
-                zfun = np.dot([1,x,y,x*y,x**2,y**2],C)
-                if point[2]<zfun-deltaTop:
-                    pierArray.append([point[0],point[1],point[2]])
-                else:
-                    deckArray.append([point[0],point[1],point[2]])
-        if numSurf == 2:
-            C0 = curveFitLinear(surfPointsCombined[k][0])
-            C1 = curveFitQuad(surfPointsCombined[k][1])
-            for point in rem_PD_Sub[k]:
-                x = point[0]
-                y = point[1]
-                zfun = np.dot([1,x,y,x*y,x**2,y**2],C1)
-                if point[2]<zfun-deltaTop:
-                    pierCapArray.append([point[0],point[1],point[2]])
-                else:
-                    deckArray.append([point[0],point[1],point[2]])
-                    
-            for point in rem_PC_Sub[k]:
-                x = point[0]
-                y = point[1]
-                #zfun = np.dot([1,x,y,x*y,x**2,y**2],C0)
-                zfun = x*C0[0]+y*C0[1]+C0[2]
-                if point[2]<zfun-deltaBot:
-                    pierArray.append([point[0],point[1],point[2]])
-                else:
-                    pierCapArray.append([point[0],point[1],point[2]])
-                    
-                       
-    pier = np.vstack((pier,np.array(pierArray)))
-    pierCap = np.vstack((pierCap,np.array(pierCapArray)))
-    deck = np.vstack((deck,np.array(deckArray)))
+    #print(surfPCD)
+if write:
+    start = clock_msg('*Exporting Everything',start,begining)
     
+    filename = "../data/elements/surfPCD.pcd"
+    pcd_export = open3d.PointCloud()
+    pcd_export.points = open3d.Vector3dVector(surfPCD)
+    open3d.write_point_cloud(filename, pcd_export)
+    filename = "../data/elements/surfPCD.pcd"
+    pcd_export = open3d.PointCloud()
+    pcd_export.points = open3d.Vector3dVector(surfPCD)
+    open3d.write_point_cloud(filename, pcd_export)  
     
-    #exportComponents2(np.array(deckArray),np.array(pierCapArray),np.array(pierArray))
-            
-            
+    #print("After Merge")
+    surfPCDmerged = createSurfPCD(nx,ny,eMat, cluster)
+    filename = "../data/elements/surfPCD_merged.pcd"
+    pcd_export = open3d.PointCloud()
+    color = np.diag(np.divide([0, 255, 0],255))
+    rgb = np.matmul(np.ones((len(surfPCDmerged),3)),color)
+    pcd_export.colors = open3d.Vector3dVector(rgb)
+    pcd_export.points = open3d.Vector3dVector(surfPCDmerged)
+    open3d.write_point_cloud(filename, pcd_export) 
     
-    if write:
-        exportComponents(deck,pierCap,pier)   
+
+    
+
+#start = clock_msg('*Extract Surface Points and save',start,begining)
+
+start = clock_msg('*Combining surface points using clustering of normals',start,begining)
+surfPointsCombined = segmentNorms(eMat,cluster,nx,ny)
+'''
+for k in range(len(surfPointsCombined)):
+    for layer in range(len(surfPointsCombined[k])):
+        filename = "../data/elements/surfPCD_all_" + str(k) + "," + str(layer) + ".pcd"
+        pcd_export = open3d.PointCloud()
+        if layer == 0:
+            color = np.diag(np.divide([255, 255, 255],255))
+        else:
+            color = np.diag(np.divide([0, 0, 0],255))
+        rgb = np.matmul(np.ones((len(surfPointsCombined[k][layer]),3)),color)
+        pcd_export.colors = open3d.Vector3dVector(rgb)
+        res = np.array((surfPointsCombined[k][layer]))
+        pcd_export.points = open3d.Vector3dVector(res)
+        open3d.write_point_cloud(filename, pcd_export)
+        
+        
+        res, eq = curveFit(surfPointsCombined[k][layer])
+        filename = "../data/elements/surfPCD_Plane_" + str(k) + "," + str(layer) + ".pcd"
+        pcd_export = open3d.PointCloud()
+        color = np.diag(np.divide([255, 0, 255],255))
+        rgb = np.matmul(np.ones((len(res),3)),color)
+        pcd_export.colors = open3d.Vector3dVector(rgb)
+        pcd_export.points = open3d.Vector3dVector(res)
+        open3d.write_point_cloud(filename, pcd_export)
+'''
+start = clock_msg('*Subslice the elements into components',start,begining)
+#Next step is to use the surfaces to split the pier, piercap, and deck
+deck = []
+pierCap = []
+pier = []
+
+B = []
+#dz = zMax-zMin
+delta = 0.005
+numSurf = len(eMat[0][0][0].surf)
+pierArray = []
+pierCapArray = []
+deckArray = []
+#The subset of points that lie on the pier - Deck or pierCap - Deck interface
+rem_PD_Sub = [[] for i in range(len(cluster))]
+#The subset of points lying on the pier - pierCap interface
+rem_PC_Sub = [[] for i in range(len(cluster))]
+flag1 = False
+
+for k in range(len(cluster)):
+    flag2 = False
+    zBounds = []
+    pierAreaSub[k] = pierAreaSub[k][np.argsort(pierAreaSub[k][:,2]), :]
+    
+    #For each layer, extract the min/max points of the planes
+    #   Consider doing this to each element instead of each cluster if speed becomes an issue
+    #   (Will cause less points to need to be compared to the planes)
+    for layer in range(numSurf):
+        _,eq = curveFit(surfPointsCombined[k][layer])
+        res = findZBoundVals(eq,pierAreaSub[k])
+        index = findZIndex(res, pierAreaSub[k])
+        zBounds.append(index[0])
+        zBounds.append(index[1])
+    #For each layer, use the bounds found to quickly extract the slices
+    #which correspond to pier/deck/ect.
+    for layer in range(numSurf):
+        if (not flag1):
+            if numSurf == 1:
+                pier = pierAreaSub[k][:zBounds[0],:]
+                deck = pierAreaSub[k][zBounds[1]:,:]
+
+            elif numSurf == 2:
+                pier = pierAreaSub[k][:zBounds[0],:]
+                pierCap = pierAreaSub[k][zBounds[1]:zBounds[2],:]
+                deck = pierAreaSub[k][zBounds[3]:,:]
+
+            else:
+                print("*"*100)
+                print("Critical Error. Only 1 or 2 surfaces currently supported. Found " + str(len(numSurf)))
+                print("*"*100)
+            flag1 = True
+        else:
+            if numSurf == 1:
+                pier = np.vstack((pier,pierAreaSub[k][:zBounds[0],:]))
+                deck = np.vstack((deck,pierAreaSub[k][zBounds[1]:,:]))
+
+            elif numSurf == 2:
+                pier = np.vstack((pier,pierAreaSub[k][:zBounds[0],:]))
+                pierCap = np.vstack((pierCap,pierAreaSub[k][zBounds[1]:zBounds[2],:]))
+                deck = np.vstack((deck,pierAreaSub[k][zBounds[3]:,:]))
+
+                
+                
+                
+        if (not flag2):
+            if numSurf == 1:
+                rem_PD_Sub[k] = pierAreaSub[k][zBounds[0]:zBounds[1],:]
+            elif numSurf == 2:
+                rem_PC_Sub[k] = pierAreaSub[k][zBounds[0]:zBounds[1],:]
+                rem_PD_Sub[k] = pierAreaSub[k][zBounds[2]:zBounds[3],:]
+            flag2 = True
+        else:
+            if numSurf == 1:
+                rem_PD_Sub[k] = np.vstack((rem_PD_Sub[k],pierAreaSub[k][zBounds[0]:zBounds[1],:]))
+            elif numSurf == 2:
+                rem_PC_Sub[k] = np.vstack((rem_PC_Sub[k],pierAreaSub[k][zBounds[0]:zBounds[1],:]))
+                rem_PD_Sub[k] = np.vstack((rem_PD_Sub[k],pierAreaSub[k][zBounds[2]:zBounds[3],:]))
+            
+    #For each layer, compare each point to it's corresponding planar value
+    #and decide where to put it
+        
+    #want about 0.1 meter offset for the deck-pierCap inerface
+    deltaTop = dz/200
+    deltaBot = dz/500
+    #Z = np.dot(np.c_[np.ones(XX.shape), XX, YY, XX*YY, XX**2, YY**2], C).reshape(X.shape)
+    if numSurf == 1:
+        C = curveFitQuad(surfPointsCombined[k][0])
+        for point in rem_PD_Sub[k]:
+            x = point[0]
+            y = point[1]
+            zfun = np.dot([1,x,y,x*y,x**2,y**2],C)
+            if point[2]<zfun-deltaTop:
+                pierArray.append([point[0],point[1],point[2]])
+            else:
+                deckArray.append([point[0],point[1],point[2]])
+    if numSurf == 2:
+        C0 = curveFitQuad(surfPointsCombined[k][0])
+        C1 = curveFitQuad(surfPointsCombined[k][1])
+        for point in rem_PD_Sub[k]:
+            x = point[0]
+            y = point[1]
+            zfun = np.dot([1,x,y,x*y,x**2,y**2],C1)
+            if point[2]<zfun-deltaTop:
+                pierCapArray.append([point[0],point[1],point[2]])
+            else:
+                deckArray.append([point[0],point[1],point[2]])
+                
+        for point in rem_PC_Sub[k]:
+            x = point[0]
+            y = point[1]
+            zfun = np.dot([1,x,y,x*y,x**2,y**2],C0)
+            if point[2]<zfun-deltaBot:
+                pierArray.append([point[0],point[1],point[2]])
+            else:
+                pierCapArray.append([point[0],point[1],point[2]])
+                
+                   
+pier = np.vstack((pier,np.array(pierArray)))
+pierCap = np.vstack((pierCap,np.array(pierCapArray)))
+deck = np.vstack((deck,np.array(deckArray)))
 
 
-#start = clock_msg('',start,begining)
+#exportComponents2(np.array(deckArray),np.array(pierCapArray),np.array(pierArray))
+        
+        
+
+if write:
+    exportComponents(deck,pierCap,pier)   
+
+
+start = clock_msg('',start,begining)
 #return p
-    return deck, pierCap, pier, start
+    #return deck, pierCap, pier, start
 
 
 
