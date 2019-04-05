@@ -17,8 +17,9 @@ from scipy.optimize import leastsq
 import scipy.linalg
 from mpl_toolkits.mplot3d import Axes3D
 
-global color, debug, dz
+global color, debug, dz, info
 debug = False
+info = True
 
 class Element():
     def __init__(self,k,i,j,xyz,norms,color,zMin,zMax,bounds):
@@ -543,7 +544,7 @@ def pierAreaSegmentation(pierArea,begining,start,write):
     open3d.estimate_normals(pcd, search_param = open3d.KDTreeSearchParamHybrid(radius = 0.1, max_nn = 30))
     normals = np.asarray(pcd.normals)
         
-    start = clock_msg('*Cluster by pier group',start,begining)
+    start = clock_msg('*Cluster by pier group and populate element objects',start,begining)
     
     pcd = open3d.voxel_down_sample(pcd, voxel_size = 0.2)
     xyz= np.asarray(pcd.points)
@@ -558,7 +559,7 @@ def pierAreaSegmentation(pierArea,begining,start,write):
         
     #Now for each cluster we have: bounds, points, normals
     #Next step: Slice into cubes
-    start = clock_msg('*Populate the element objects',start,begining)
+    #start = clock_msg('*Populate the element objects',start,begining)
     eMat = []
     pierAreaSub = []
     normSub = []
@@ -598,14 +599,30 @@ def pierAreaSegmentation(pierArea,begining,start,write):
                     ax.hlines(boundExport[3],xmin=boundExport[0],xmax=boundExport[1])
         eMat.append(e)
         
-    start = clock_msg('*Cluster Element Surfaces',start,begining)
+    #start = clock_msg('*Cluster Element Surfaces',start,begining)
+    
     for k in range(len(cluster)):
+        surfOrigCount = []
         for x in range(ny):
             for y in range(nx):
                 eMat[k][x][y].clusterSurf()
                 eMat[k][x][y].surfOriginal = eMat[k][x][y].surf
                 eMat[k][x][y].surfOriginal.sort()
+                numSurf = len(eMat[k][x][y].surfOriginal)
+                if numSurf > len(surfOrigCount):
+                    for i in range(numSurf-len(surfOrigCount)+1):
+                        surfOrigCount.append(0)
+                surfOrigCount[numSurf]+=1
                 #print(surfPCD)
+        if info:
+            print("In cluster %d the elements per surface count are as follows:"%k)
+            print("numElement / numSurf: ",end="")
+            for c in range(len(surfOrigCount)):
+                print("(%d/ %d)\t"%(surfOrigCount[c],c), end = "")
+            print()
+    
+        
+        
     
     
     
@@ -636,14 +653,32 @@ def pierAreaSegmentation(pierArea,begining,start,write):
                     zMin = np.min(cluster[k][:,2])
                     zMax = np.max(cluster[k][:,2])
                     changed += updateSurf(eMat[k][x][y], zMin, zMax)
-        print("Itteration %d, Changed %d"%(iterrations, changed))
+        if info:
+            print("Itteration %d, Changed %d"%(iterrations, changed))
         if changed == 0:
             break
-        
+    
+    if info:
+        for k in range(len(cluster)):
+            surfTotalCount = []
+            for x in range(ny):
+                for y in range(nx):
+                    numSurf = len(eMat[k][x][y].surf)
+                    if numSurf > len(surfTotalCount):
+                        for i in range(numSurf-len(surfTotalCount)+1):
+                            surfTotalCount.append(0)
+                    surfTotalCount[numSurf]+=1
+                    #print(surfPCD)
+            if info:
+                print("In cluster %d the elements per SPREAD surface count are as follows:"%k)
+                print("numElement / numSurf: ",end="")
+                for c in range(len(surfTotalCount)):
+                    print("(%d/ %d)\t"%(surfTotalCount[c],c), end = "")
+                print()
                     
         #print(surfPCD)
     if write:
-        start = clock_msg('*Exporting Everything',start,begining)
+        #start = clock_msg('*Exporting Everything',start,begining)
         
         filename = "../data/elements/surfPCD.pcd"
         pcd_export = open3d.PointCloud()
@@ -666,11 +701,17 @@ def pierAreaSegmentation(pierArea,begining,start,write):
         
     
         
-    
-    #start = clock_msg('*Extract Surface Points and save',start,begining)
-    
     start = clock_msg('*Combining surface points using clustering of normals',start,begining)
     surfPointsCombined = segmentNorms(eMat,cluster,nx,ny)
+    
+    
+    if info:
+        for k in range(len(cluster)):
+            print("In cluster %d:"%k,end="\n\t")
+            for layer in range(len(surfPointsCombined[k])):
+                print("Surf %d: %d, "%(layer,len(surfPointsCombined[k][layer])), end="")
+            print()
+    
     '''
     for k in range(len(surfPointsCombined)):
         for layer in range(len(surfPointsCombined[k])):
